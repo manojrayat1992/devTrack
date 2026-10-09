@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/devtrack_db}
+    username: ${DATABASE_USERNAME:devtrack_user}
+    password: ${DATABASE_PASSWORD:devtrack_secret_change_me_in_prod}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 25
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+logging:
+  level:
+    root: INFO
+    com.devtrack: DEBUG
+    org.springframework.security: INFO

@@ -1,0 +1,75 @@
+@use './variables' as *;
+@use './mixins' as *;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background-color: $color-bg-deep;
+  color: $color-text-main;
+  font-family: $font-family-sans;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-family-display;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: $color-text-white;
+}
+
+a {
+  color: $color-primary-light;
+  text-decoration: none;
+  transition: color $transition-fast;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+input, select, textarea {
+  font-family: $font-family-sans;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: $color-text-main;
+  border-radius: $radius-md;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  transition: all $transition-fast;
+  outline: none;
+
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px $color-primary-glow;
+  }
+
+  &::placeholder {
+    color: $color-text-dim;
+  }
+}
+
+// Custom Scrollbar
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: $color-bg-base;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-bg-elevated;
+  border-radius: 4px;
+
+  &:hover {
+    background: #475569;
+  }
+}

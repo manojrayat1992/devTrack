@@ -1,0 +1,106 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.stat-card {
+  @include glassmorphism;
+  border-radius: $radius-lg;
+  padding: 1.25rem;
+  transition: all $transition-normal;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: transparent;
+    transition: background $transition-fast;
+  }
+
+  &--clickable {
+    cursor: pointer;
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-lg;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+  }
+
+  &--active {
+    border-color: $color-primary;
+    box-shadow: 0 0 16px $color-primary-glow;
+  }
+
+  &__header {
+    @include flex-between;
+    margin-bottom: 0.75rem;
+  }
+
+  &__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-muted;
+  }
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: $radius-md;
+    @include flex-center;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__value {
+    font-family: $font-family-display;
+    font-size: 2rem;
+    font-weight: 800;
+    color: $color-text-white;
+    line-height: 1.1;
+  }
+
+  &__subtitle {
+    font-size: 0.75rem;
+    color: $color-text-dim;
+  }
+
+  // Variants
+  &--primary {
+    .stat-card__icon { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+    &::before { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+  }
+
+  &--success {
+    .stat-card__icon { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    &::before { background: #10b981; }
+  }
+
+  &--warning {
+    .stat-card__icon { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    &::before { background: #f59e0b; }
+  }
+
+  &--danger {
+    .stat-card__icon { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    &::before { background: #ef4444; }
+  }
+
+  &--purple {
+    .stat-card__icon { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+    &::before { background: #a855f7; }
+  }
+
+  &--neutral {
+    .stat-card__icon { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+    &::before { background: #64748b; }
+  }
+}

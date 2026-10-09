@@ -1,0 +1,71 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.pagination {
+  @include flex-between;
+  padding: 1rem 0;
+  gap: 1rem;
+  flex-wrap: wrap;
+
+  &__info {
+    font-size: 0.85rem;
+    color: $color-text-muted;
+
+    strong {
+      color: $color-text-white;
+    }
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  &__size {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: $color-text-muted;
+
+    select {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+    }
+  }
+
+  &__buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  &__pages {
+    font-size: 0.85rem;
+    color: $color-text-muted;
+    padding: 0 0.5rem;
+  }
+
+  &__btn {
+    width: 32px;
+    height: 32px;
+    border-radius: $radius-sm;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: $color-text-main;
+    @include flex-center;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
