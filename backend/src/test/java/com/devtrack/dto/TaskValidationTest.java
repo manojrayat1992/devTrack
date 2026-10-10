@@ -196,13 +196,26 @@ class TaskValidationTest {
     }
 
     @Test
-    @DisplayName("Whitespace-only description is normalized to null")
+    @DisplayName("Whitespace-only description is normalized to null in TaskCreateRequest")
     void whitespaceDescriptionNormalizesToNull() {
         TaskCreateRequest request = new TaskCreateRequest(
             "Valid Title",
             "    \t  \n  ",
             TaskPriority.MEDIUM,
             TaskStatus.OPEN,
+            null
+        );
+        assertNull(request.description());
+        assertTrue(validator.validate(request).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Whitespace-only description is normalized to null in TaskUpdateRequest")
+    void taskUpdateRequestWhitespaceDescriptionNormalizesToNull() {
+        TaskUpdateRequest request = new TaskUpdateRequest(
+            "Valid Title",
+            "    \t  \n  ",
+            TaskPriority.HIGH,
             null
         );
         assertNull(request.description());
