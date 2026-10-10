@@ -113,7 +113,7 @@ public class TaskServiceImpl implements TaskService {
     private Task getTaskAndVerifyOwnership(UUID id, String currentUserId) {
         return taskRepository.findById(id)
             .map(task -> {
-                if (!task.getOwnerId().equals(currentUserId)) {
+                if (!java.util.Objects.equals(task.getOwnerId(), currentUserId)) {
                     log.warn("User '{}' attempted to access task '{}' owned by '{}'",
                         currentUserId, id, task.getOwnerId());
                     throw new TaskOwnershipException("You are not authorized to access or modify this task");

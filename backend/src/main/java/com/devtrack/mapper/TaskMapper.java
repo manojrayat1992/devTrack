@@ -5,6 +5,7 @@ import com.devtrack.dto.TaskResponse;
 import com.devtrack.dto.TaskUpdateRequest;
 import com.devtrack.entity.Task;
 import com.devtrack.entity.TaskStatus;
+import com.devtrack.exception.InvalidStatusTransitionException;
 import com.devtrack.service.TaskStatusTransitionEngine;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -23,7 +24,13 @@ public class TaskMapper {
         task.setTitle(request.title().trim());
         task.setDescription(request.description() != null ? request.description().trim() : null);
         task.setPriority(request.priority());
-        task.setStatus(request.status() != null ? request.status() : TaskStatus.OPEN);
+        // Business rule: Newly created tasks must always begin in the OPEN lifecycle state
+        if (request.status() != null && request.status() != TaskStatus.OPEN) {
+            throw new InvalidStatusTransitionException(
+                "Initial task state must be OPEN; cannot directly create task in status '" + request.status() + "'"
+            );
+        }
+        task.setStatus(TaskStatus.OPEN);
         task.setDueDate(request.dueDate());
         task.setOwnerId(ownerId);
         return task;
