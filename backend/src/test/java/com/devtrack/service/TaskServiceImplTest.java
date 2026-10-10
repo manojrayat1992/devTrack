@@ -25,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -258,17 +259,53 @@ class TaskServiceImplTest {
     }
 
     @Test
-    @DisplayName("findTasks appends id tie-breaker to ensure deterministic sorting across pages")
+    @DisplayName("findTasks appends id DESC tie-breaker to ensure deterministic sorting across pages")
     void findTasksAppendsIdTieBreaker() {
         when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
             .thenAnswer(invocation -> {
                 Pageable pageable = invocation.getArgument(1);
-                assertTrue(pageable.getSort().stream().anyMatch(o -> o.getProperty().equalsIgnoreCase("id")),
-                    "Sort specification must include 'id' tie-breaker");
+                List<Sort.Order> orders = pageable.getSort().toList();
+                assertEquals(2, orders.size(), "Sort specification must contain primary sort and tie-breaker");
+                assertEquals("priority", orders.get(0).getProperty());
+                assertEquals(Sort.Order.desc("id"), orders.get(1),
+                    "Sort specification must end with 'id' DESC tie-breaker");
                 return Page.empty(pageable);
             });
 
         TaskFilterCriteria criteria = new TaskFilterCriteria(null, null, null, null, null);
-        taskService.findTasks(criteria, PageRequest.of(0, 10, org.springframework.data.domain.Sort.by("priority")));
+        taskService.findTasks(criteria, PageRequest.of(0, 10, Sort.by("priority")));
+    }
+
+    @Test
+    @DisplayName("findTasks with unpaged/default sort applies default createdAt DESC and id DESC tie-breaker")
+    void findTasksWithDefaultSortAppliesCreatedAtDescAndIdDesc() {
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenAnswer(invocation -> {
+                Pageable pageable = invocation.getArgument(1);
+                List<Sort.Order> orders = pageable.getSort().toList();
+                assertEquals(2, orders.size());
+                assertEquals(Sort.Order.desc("createdAt"), orders.get(0));
+                assertEquals(Sort.Order.desc("id"), orders.get(1));
+                return Page.empty(pageable);
+            });
+
+        TaskFilterCriteria criteria = new TaskFilterCriteria(null, null, null, null, null);
+        taskService.findTasks(criteria, Pageable.unpaged());
+    }
+
+    @Test
+    @DisplayName("findTasks when sort already contains id preserves sort without duplicating id")
+    void findTasksWithExistingIdSortDoesNotDuplicate() {
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenAnswer(invocation -> {
+                Pageable pageable = invocation.getArgument(1);
+                List<Sort.Order> orders = pageable.getSort().toList();
+                assertEquals(1, orders.size());
+                assertEquals("id", orders.get(0).getProperty());
+                return Page.empty(pageable);
+            });
+
+        TaskFilterCriteria criteria = new TaskFilterCriteria(null, null, null, null, null);
+        taskService.findTasks(criteria, PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "id")));
     }
 }
