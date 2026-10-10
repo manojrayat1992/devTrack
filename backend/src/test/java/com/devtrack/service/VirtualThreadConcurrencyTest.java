@@ -1,12 +1,14 @@
 package com.devtrack.service;
 
 import com.devtrack.dto.DashboardStatsResponse;
+import com.devtrack.dto.ErrorResponse;
 import com.devtrack.dto.PriorityCountRecord;
 import com.devtrack.dto.StatusCountRecord;
+import com.devtrack.dto.SystemMetricsResponse;
 import com.devtrack.entity.TaskPriority;
 import com.devtrack.entity.TaskStatus;
-import com.devtrack.event.TaskDomainEvent;
 import com.devtrack.exception.DevTrackException;
+import com.devtrack.exception.GlobalExceptionHandler;
 import com.devtrack.exception.InvalidStatusTransitionException;
 import com.devtrack.exception.ResourceNotFoundException;
 import com.devtrack.exception.TaskOwnershipException;
@@ -18,18 +20,22 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -42,11 +48,13 @@ class VirtualThreadConcurrencyTest {
     private TaskRepository taskRepository;
 
     private DashboardServiceImpl dashboardService;
+    private GlobalExceptionHandler exceptionHandler;
     private final String userId = "user-vt-123";
 
     @BeforeEach
     void setUp() {
         dashboardService = new DashboardServiceImpl(taskRepository, Clock.systemUTC());
+        exceptionHandler = new GlobalExceptionHandler();
 
         Jwt jwt = Jwt.withTokenValue("vt-token")
             .header("alg", "none")
@@ -63,11 +71,22 @@ class VirtualThreadConcurrencyTest {
     }
 
     @Test
-    @DisplayName("DashboardServiceImpl computes metrics concurrently across Java 21 Virtual Threads")
-    void dashboardMetricsExecuteConcurrentlyOnVirtualThreads() {
+    @DisplayName("Java 21 Virtual Thread runtime executes tasks on virtual threads")
+    void virtualThreadRuntimeExecutesOnVirtualThread() throws ExecutionException, InterruptedException {
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            Future<Boolean> isVirtualFuture = executor.submit(() -> Thread.currentThread().isVirtual());
+            assertTrue(isVirtualFuture.get(), "Task must execute on a Java 21 Virtual Thread");
+        }
+    }
+
+    @Test
+    @DisplayName("DashboardServiceImpl computes user dashboard stats within transactional boundary")
+    void dashboardMetricsExecuteWithinTransaction() {
         when(taskRepository.countByOwnerId(userId)).thenReturn(10L);
-        when(taskRepository.countTasksByStatusForOwner(userId)).thenReturn(List.of(new StatusCountRecord(TaskStatus.OPEN, 10L)));
-        when(taskRepository.countTasksByPriorityForOwner(userId)).thenReturn(List.of(new PriorityCountRecord(TaskPriority.HIGH, 10L)));
+        when(taskRepository.countTasksByStatusForOwner(userId))
+            .thenReturn(List.of(new StatusCountRecord(TaskStatus.OPEN, 6L), new StatusCountRecord(TaskStatus.COMPLETED, 4L)));
+        when(taskRepository.countTasksByPriorityForOwner(userId))
+            .thenReturn(List.of(new PriorityCountRecord(TaskPriority.HIGH, 7L), new PriorityCountRecord(TaskPriority.LOW, 3L)));
         when(taskRepository.countByOwnerIdAndDueDate(eq(userId), any(LocalDate.class))).thenReturn(2L);
         when(taskRepository.countByOwnerIdAndDueDateBeforeAndStatusNot(eq(userId), any(LocalDate.class), eq(TaskStatus.COMPLETED))).thenReturn(1L);
 
@@ -77,43 +96,66 @@ class VirtualThreadConcurrencyTest {
         assertEquals(10L, stats.totalTasks());
         assertEquals(2L, stats.dueTodayCount());
         assertEquals(1L, stats.overdueCount());
+        assertEquals(6L, stats.countsByStatus().get(TaskStatus.OPEN));
+        assertEquals(4L, stats.countsByStatus().get(TaskStatus.COMPLETED));
+        assertEquals(7L, stats.countsByPriority().get(TaskPriority.HIGH));
+        assertEquals(3L, stats.countsByPriority().get(TaskPriority.LOW));
     }
 
     @Test
-    @DisplayName("Java 21 Pattern Matching on Sealed DevTrackException hierarchy is compiler-verified")
-    void sealedExceptionHierarchyPatternMatching() {
-        DevTrackException notFound = new ResourceNotFoundException("Task", UUID.randomUUID());
-        DevTrackException forbidden = new TaskOwnershipException("Unauthorized");
-        DevTrackException invalidStatus = new InvalidStatusTransitionException(TaskStatus.OPEN, TaskStatus.COMPLETED, List.of());
+    @DisplayName("DashboardServiceImpl computes system metrics with complete status and priority aggregations")
+    void systemMetricsComputeCorrectly() {
+        when(taskRepository.count()).thenReturn(50L);
+        when(taskRepository.countDistinctOwners()).thenReturn(8L);
+        when(taskRepository.countTasksByStatusSystemWide())
+            .thenReturn(List.of(new StatusCountRecord(TaskStatus.COMPLETED, 20L), new StatusCountRecord(TaskStatus.OPEN, 30L)));
+        when(taskRepository.countTasksByPrioritySystemWide())
+            .thenReturn(List.of(new PriorityCountRecord(TaskPriority.CRITICAL, 5L), new PriorityCountRecord(TaskPriority.MEDIUM, 45L)));
 
-        assertEquals("NOT_FOUND", classify(notFound));
-        assertEquals("FORBIDDEN", classify(forbidden));
-        assertEquals("BAD_REQUEST", classify(invalidStatus));
-    }
+        SystemMetricsResponse metrics = dashboardService.getSystemMetrics();
 
-    private String classify(DevTrackException ex) {
-        // Compiler guarantees exhaustiveness without default case
-        return switch (ex) {
-            case ResourceNotFoundException r -> r.getMessage() != null ? "NOT_FOUND" : "NOT_FOUND";
-            case TaskOwnershipException t -> t.getMessage() != null ? "FORBIDDEN" : "FORBIDDEN";
-            case InvalidStatusTransitionException i -> i.getMessage() != null ? "BAD_REQUEST" : "BAD_REQUEST";
-        };
+        assertNotNull(metrics);
+        assertEquals(50L, metrics.totalTasks());
+        assertEquals(8L, metrics.activeUsersCount());
+        assertEquals(20L, metrics.completedTasksCount());
+        assertEquals(30L, metrics.countsByStatus().get(TaskStatus.OPEN));
+        assertEquals(20L, metrics.countsByStatus().get(TaskStatus.COMPLETED));
+        assertEquals(5L, metrics.countsByPriority().get(TaskPriority.CRITICAL));
+        assertEquals(45L, metrics.countsByPriority().get(TaskPriority.MEDIUM));
     }
 
     @Test
-    @DisplayName("Java 21 Sealed TaskDomainEvent records support exhaustive pattern matching")
-    void sealedTaskDomainEventsPatternMatching() {
+    @DisplayName("GlobalExceptionHandler maps sealed DevTrackException types to correct HTTP statuses via pattern matching")
+    void globalExceptionHandlerMapsSealedHierarchy() {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/tasks/test-task-id");
+
+        // 1. ResourceNotFoundException -> 404 Not Found
         UUID taskId = UUID.randomUUID();
-        TaskDomainEvent event = new TaskDomainEvent.TaskCreatedEvent(
-            taskId, userId, "Build Feature", TaskPriority.HIGH, Instant.now()
-        );
+        DevTrackException notFound = new ResourceNotFoundException("Task", taskId);
+        ResponseEntity<ErrorResponse> notFoundResp = exceptionHandler.handleDevTrackException(notFound, request);
+        assertEquals(HttpStatus.NOT_FOUND, notFoundResp.getStatusCode());
+        assertNotNull(notFoundResp.getBody());
+        assertEquals(404, notFoundResp.getBody().status());
+        assertEquals("Not Found", notFoundResp.getBody().error());
+        assertEquals(notFound.getMessage(), notFoundResp.getBody().message());
+        assertEquals("/api/tasks/test-task-id", notFoundResp.getBody().path());
 
-        String type = switch (event) {
-            case TaskDomainEvent.TaskCreatedEvent c -> "CREATED:" + c.title();
-            case TaskDomainEvent.TaskStatusChangedEvent s -> "STATUS:" + s.toStatus();
-            case TaskDomainEvent.TaskDeletedEvent d -> "DELETED:" + d.taskId();
-        };
+        // 2. TaskOwnershipException -> 403 Forbidden
+        DevTrackException forbidden = new TaskOwnershipException("User does not own task");
+        ResponseEntity<ErrorResponse> forbiddenResp = exceptionHandler.handleDevTrackException(forbidden, request);
+        assertEquals(HttpStatus.FORBIDDEN, forbiddenResp.getStatusCode());
+        assertNotNull(forbiddenResp.getBody());
+        assertEquals(403, forbiddenResp.getBody().status());
+        assertEquals("Forbidden", forbiddenResp.getBody().error());
+        assertEquals("User does not own task", forbiddenResp.getBody().message());
 
-        assertEquals("CREATED:Build Feature", type);
+        // 3. InvalidStatusTransitionException -> 400 Bad Request
+        DevTrackException invalidStatus = new InvalidStatusTransitionException(TaskStatus.OPEN, TaskStatus.COMPLETED, List.of(TaskStatus.IN_PROGRESS));
+        ResponseEntity<ErrorResponse> invalidStatusResp = exceptionHandler.handleDevTrackException(invalidStatus, request);
+        assertEquals(HttpStatus.BAD_REQUEST, invalidStatusResp.getStatusCode());
+        assertNotNull(invalidStatusResp.getBody());
+        assertEquals(400, invalidStatusResp.getBody().status());
+        assertEquals("Invalid Status Transition", invalidStatusResp.getBody().error());
+        assertEquals(invalidStatus.getMessage(), invalidStatusResp.getBody().message());
     }
 }
