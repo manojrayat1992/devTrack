@@ -17,12 +17,16 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class TaskServiceImpl implements TaskService {
+
+    private static final int MAX_PAGE_SIZE = 100;
 
     private static final Logger log = LoggerFactory.getLogger(TaskServiceImpl.class);
 
@@ -102,12 +106,34 @@ public class TaskServiceImpl implements TaskService {
         String currentUserId = SecurityUtils.getCurrentUserId();
         log.debug("Fetching paginated tasks for user '{}' with criteria '{}'", currentUserId, criteria);
 
+        Pageable boundedPageable = buildDeterministicPageable(pageable);
+
         Page<Task> taskPage = taskRepository.findAll(
             TaskSpecification.withFilters(currentUserId, criteria),
-            pageable
+            boundedPageable
         );
 
         return PageResponse.from(taskPage.map(taskMapper::toResponse));
+    }
+
+    private Pageable buildDeterministicPageable(Pageable pageable) {
+        if (pageable == null || pageable.isUnpaged()) {
+            return PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        }
+
+        int boundedSize = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
+        Sort originalSort = pageable.getSort();
+
+        // Enforce deterministic secondary sort by 'id' to guarantee consistency across pagination windows
+        Sort deterministicSort;
+        boolean hasIdSort = originalSort.stream().anyMatch(order -> order.getProperty().equalsIgnoreCase("id"));
+        if (!hasIdSort) {
+            deterministicSort = originalSort.and(Sort.by(Sort.Direction.DESC, "id"));
+        } else {
+            deterministicSort = originalSort;
+        }
+
+        return PageRequest.of(pageable.getPageNumber(), boundedSize, deterministicSort);
     }
 
     private Task getTaskAndVerifyOwnership(UUID id, String currentUserId) {
