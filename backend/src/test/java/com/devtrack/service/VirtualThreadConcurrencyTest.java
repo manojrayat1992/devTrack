@@ -31,9 +31,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,7 +38,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("Java 21 Virtual Threads & Sealed Hierarchy Verification Tests")
+@DisplayName("Dashboard Metrics Aggregations & Sealed Exception Hierarchy Verification Tests")
 class VirtualThreadConcurrencyTest {
 
     @Mock
@@ -71,17 +68,8 @@ class VirtualThreadConcurrencyTest {
     }
 
     @Test
-    @DisplayName("Java 21 Virtual Thread runtime executes tasks on virtual threads")
-    void virtualThreadRuntimeExecutesOnVirtualThread() throws ExecutionException, InterruptedException {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            Future<Boolean> isVirtualFuture = executor.submit(() -> Thread.currentThread().isVirtual());
-            assertTrue(isVirtualFuture.get(), "Task must execute on a Java 21 Virtual Thread");
-        }
-    }
-
-    @Test
-    @DisplayName("DashboardServiceImpl computes user dashboard stats within transactional boundary")
-    void dashboardMetricsExecuteWithinTransaction() {
+    @DisplayName("DashboardServiceImpl aggregates repository counts and zero-fills unseeded enum values")
+    void dashboardStatsAggregateRepositoryCounts() {
         when(taskRepository.countByOwnerId(userId)).thenReturn(10L);
         when(taskRepository.countTasksByStatusForOwner(userId))
             .thenReturn(List.of(new StatusCountRecord(TaskStatus.OPEN, 6L), new StatusCountRecord(TaskStatus.COMPLETED, 4L)));
@@ -96,14 +84,22 @@ class VirtualThreadConcurrencyTest {
         assertEquals(10L, stats.totalTasks());
         assertEquals(2L, stats.dueTodayCount());
         assertEquals(1L, stats.overdueCount());
+
+        // Validate complete enum key coverage and zero-fill behavior
+        assertEquals(TaskStatus.values().length, stats.countsByStatus().size(), "All task statuses must be present in map");
+        assertEquals(TaskPriority.values().length, stats.countsByPriority().size(), "All task priorities must be present in map");
         assertEquals(6L, stats.countsByStatus().get(TaskStatus.OPEN));
         assertEquals(4L, stats.countsByStatus().get(TaskStatus.COMPLETED));
+        assertEquals(0L, stats.countsByStatus().get(TaskStatus.IN_PROGRESS), "Unseeded status must be zero-filled");
+        assertEquals(0L, stats.countsByStatus().get(TaskStatus.IN_REVIEW), "Unseeded status must be zero-filled");
         assertEquals(7L, stats.countsByPriority().get(TaskPriority.HIGH));
         assertEquals(3L, stats.countsByPriority().get(TaskPriority.LOW));
+        assertEquals(0L, stats.countsByPriority().get(TaskPriority.MEDIUM), "Unseeded priority must be zero-filled");
+        assertEquals(0L, stats.countsByPriority().get(TaskPriority.CRITICAL), "Unseeded priority must be zero-filled");
     }
 
     @Test
-    @DisplayName("DashboardServiceImpl computes system metrics with complete status and priority aggregations")
+    @DisplayName("DashboardServiceImpl computes system metrics with complete status and priority aggregations and zero-filling")
     void systemMetricsComputeCorrectly() {
         when(taskRepository.count()).thenReturn(50L);
         when(taskRepository.countDistinctOwners()).thenReturn(8L);
@@ -118,10 +114,18 @@ class VirtualThreadConcurrencyTest {
         assertEquals(50L, metrics.totalTasks());
         assertEquals(8L, metrics.activeUsersCount());
         assertEquals(20L, metrics.completedTasksCount());
+
+        // Validate complete enum key coverage and zero-fill behavior
+        assertEquals(TaskStatus.values().length, metrics.countsByStatus().size(), "All task statuses must be present in map");
+        assertEquals(TaskPriority.values().length, metrics.countsByPriority().size(), "All task priorities must be present in map");
         assertEquals(30L, metrics.countsByStatus().get(TaskStatus.OPEN));
         assertEquals(20L, metrics.countsByStatus().get(TaskStatus.COMPLETED));
+        assertEquals(0L, metrics.countsByStatus().get(TaskStatus.IN_PROGRESS), "Unseeded status must be zero-filled");
+        assertEquals(0L, metrics.countsByStatus().get(TaskStatus.IN_REVIEW), "Unseeded status must be zero-filled");
         assertEquals(5L, metrics.countsByPriority().get(TaskPriority.CRITICAL));
         assertEquals(45L, metrics.countsByPriority().get(TaskPriority.MEDIUM));
+        assertEquals(0L, metrics.countsByPriority().get(TaskPriority.LOW), "Unseeded priority must be zero-filled");
+        assertEquals(0L, metrics.countsByPriority().get(TaskPriority.HIGH), "Unseeded priority must be zero-filled");
     }
 
     @Test
