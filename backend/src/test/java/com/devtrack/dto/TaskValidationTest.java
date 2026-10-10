@@ -188,6 +188,24 @@ class TaskValidationTest {
             null
         );
         Set<ConstraintViolation<TaskUpdateRequest>> violations = validator.validate(invalidRequest);
-        assertEquals(2, violations.size()); // title < 3 and priority is null
+        assertEquals(2, violations.size());
+        java.util.Set<String> violatedFields = violations.stream()
+            .map(v -> v.getPropertyPath().toString())
+            .collect(java.util.stream.Collectors.toSet());
+        assertEquals(java.util.Set.of("title", "priority"), violatedFields);
+    }
+
+    @Test
+    @DisplayName("Whitespace-only description is normalized to null")
+    void whitespaceDescriptionNormalizesToNull() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Valid Title",
+            "    \t  \n  ",
+            TaskPriority.MEDIUM,
+            TaskStatus.OPEN,
+            null
+        );
+        assertNull(request.description());
+        assertTrue(validator.validate(request).isEmpty());
     }
 }

@@ -24,7 +24,7 @@ public record TaskUpdateRequest(
             title = title.strip();
         }
         if (description != null) {
-            description = description.strip();
+            description = description.isBlank() ? null : description.strip();
         }
     }
 }
