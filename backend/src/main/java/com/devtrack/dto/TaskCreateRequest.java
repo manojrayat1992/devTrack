@@ -21,4 +21,13 @@ public record TaskCreateRequest(
     TaskStatus status,
 
     LocalDate dueDate
-) {}
+) {
+    public TaskCreateRequest {
+        if (title != null) {
+            title = title.strip();
+        }
+        if (description != null) {
+            description = description.isBlank() ? null : description.strip();
+        }
+    }
+}

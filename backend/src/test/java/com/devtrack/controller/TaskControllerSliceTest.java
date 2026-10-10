@@ -249,4 +249,28 @@ class TaskControllerSliceTest {
             .andExpect(jsonPath("$.error").value("Bad Request"))
             .andExpect(jsonPath("$.message").value("Invalid sorting or filter property: 'invalidField'"));
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("POST /api/tasks with unsupported media type returns 415 Unsupported Media Type")
+    void createTaskUnsupportedMediaTypeReturns415() throws Exception {
+        mockMvc.perform(post("/api/tasks")
+                .with(csrf())
+                .contentType(MediaType.TEXT_PLAIN)
+                .content("plain text body"))
+            .andExpect(status().isUnsupportedMediaType())
+            .andExpect(jsonPath("$.status").value(415))
+            .andExpect(jsonPath("$.error").value("Unsupported Media Type"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/tasks with invalid status enum value returns 400 with allowed enum list")
+    void listTasksInvalidEnumReturns400WithDetails() throws Exception {
+        mockMvc.perform(get("/api/tasks").param("status", "NOT_A_STATUS"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Expected one of: [OPEN, IN_PROGRESS, IN_REVIEW, COMPLETED]")));
+    }
 }
