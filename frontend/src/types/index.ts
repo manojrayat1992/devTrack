@@ -13,6 +13,7 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   allowedNextStatuses: TaskStatus[];
+  version?: number;
 }
 
 export interface TaskCreateRequest {

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import Keycloak from 'keycloak-js';
 import { UserProfile } from '../types';
+import { setAuthToken, setTokenSupplier } from '../api/apiClient';
 
 interface AuthContextType {
   authenticated: boolean;
@@ -8,9 +9,12 @@ interface AuthContextType {
   user: UserProfile | null;
   token: string | null;
   login: () => void;
+  register: () => void;
   logout: () => void;
+  getToken: () => Promise<string | null>;
   keycloakInstance: Keycloak | null;
   authError: string | null;
+  clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,53 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    keycloak
-      .init({
-        onLoad: 'check-sso',
-        pkceMethod: 'S256',
-        checkLoginIframe: false,
-      })
-      .then((auth) => {
-        if (!isMounted) return;
-        setAuthenticated(auth);
-        if (auth && keycloak.token) {
-          setToken(keycloak.token);
-          extractUserProfile();
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        console.warn('Keycloak initialization note (Keycloak may still be starting up):', err);
-        setAuthError('Keycloak authentication server is connecting or offline.');
-        setLoading(false);
-      });
-
-    keycloak.onTokenExpired = () => {
-      keycloak
-        .updateToken(30)
-        .then((refreshed) => {
-          if (refreshed && keycloak.token) {
-            setToken(keycloak.token);
-          }
-        })
-        .catch(() => {
-          console.error('Failed to refresh token, logging out');
-          setAuthenticated(false);
-          setUser(null);
-          setToken(null);
-        });
-    };
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const extractUserProfile = () => {
+  const extractUserProfile = useCallback(() => {
     if (!keycloak.tokenParsed) return;
     const parsed = keycloak.tokenParsed;
     const realmAccess = (parsed as { realm_access?: { roles?: string[] } }).realm_access;
@@ -93,7 +51,83 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isAdmin,
     };
     setUser(profile);
-  };
+  }, []);
+
+  const getToken = useCallback(async (): Promise<string | null> => {
+    if (!keycloak.authenticated) {
+      return null;
+    }
+    try {
+      // Refresh token if within 30 seconds of expiration
+      const refreshed = await keycloak.updateToken(30);
+      if (refreshed && keycloak.token) {
+        setToken(keycloak.token);
+        setAuthToken(keycloak.token);
+      }
+      return keycloak.token || null;
+    } catch (err) {
+      console.warn('Failed to refresh access token, session may be expired:', err);
+      setAuthenticated(false);
+      setUser(null);
+      setToken(null);
+      setAuthToken(null);
+      setAuthError('Your authentication session has expired. Please sign in again.');
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Connect token supplier with API client
+    setTokenSupplier(getToken);
+
+    keycloak
+      .init({
+        onLoad: 'check-sso',
+        pkceMethod: 'S256',
+        checkLoginIframe: false,
+      })
+      .then((auth) => {
+        if (!isMounted) return;
+        setAuthenticated(auth);
+        if (auth && keycloak.token) {
+          setToken(keycloak.token);
+          setAuthToken(keycloak.token);
+          extractUserProfile();
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.warn('Keycloak initialization note (Keycloak may still be starting up):', err);
+        setAuthError('Keycloak authentication server is connecting or offline. Verify Docker services are running.');
+        setLoading(false);
+      });
+
+    keycloak.onTokenExpired = () => {
+      keycloak
+        .updateToken(30)
+        .then((refreshed) => {
+          if (refreshed && keycloak.token) {
+            setToken(keycloak.token);
+            setAuthToken(keycloak.token);
+          }
+        })
+        .catch(() => {
+          console.warn('Session expired. Redirecting to unauthenticated state.');
+          setAuthenticated(false);
+          setUser(null);
+          setToken(null);
+          setAuthToken(null);
+          setAuthError('Your authentication session has expired. Please sign in again.');
+        });
+    };
+
+    return () => {
+      isMounted = false;
+    };
+  }, [extractUserProfile, getToken]);
 
   const login = () => {
     keycloak.login({
@@ -101,10 +135,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
+  const register = () => {
+    keycloak.register({
+      redirectUri: window.location.origin,
+    });
+  };
+
   const logout = () => {
+    setAuthToken(null);
     keycloak.logout({
       redirectUri: window.location.origin,
     });
+  };
+
+  const clearAuthError = () => {
+    setAuthError(null);
   };
 
   return (
@@ -115,9 +160,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         user,
         token,
         login,
+        register,
         logout,
+        getToken,
         keycloakInstance: keycloak,
         authError,
+        clearAuthError,
       }}
     >
       {children}

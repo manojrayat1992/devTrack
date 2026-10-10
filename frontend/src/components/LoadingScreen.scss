@@ -1,0 +1,62 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.loading-screen {
+  min-height: calc(100vh - 120px);
+  @include flex-center;
+  padding: 2rem 1.5rem;
+
+  &__card {
+    @include glassmorphism;
+    background: #111827;
+    max-width: 440px;
+    width: 100%;
+    border-radius: $radius-lg;
+    padding: 3rem 2rem;
+    text-align: center;
+    @include flex-center;
+    flex-direction: column;
+    gap: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  &__logo {
+    width: 60px;
+    height: 60px;
+    border-radius: $radius-md;
+    background: linear-gradient(135deg, $color-primary, $color-accent);
+    @include flex-center;
+    box-shadow: 0 0 25px $color-primary-glow;
+    margin-bottom: 0.5rem;
+
+    &-icon {
+      color: $color-text-white;
+    }
+  }
+
+  &__spinner {
+    .spin-icon {
+      animation: spin 1s linear infinite;
+      color: $color-primary-light;
+    }
+  }
+
+  &__title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: $color-text-white;
+    margin: 0;
+  }
+
+  &__message {
+    font-size: 0.9rem;
+    color: $color-text-muted;
+    margin: 0;
+  }
+
+  &__hint {
+    font-size: 0.75rem;
+    color: $color-text-dim;
+    margin-top: 0.5rem;
+  }
+}

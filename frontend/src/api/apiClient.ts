@@ -1,9 +1,14 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 let activeToken: string | null = null;
+let tokenSupplier: (() => Promise<string | null>) | null = null;
 
 export const setAuthToken = (token: string | null) => {
   activeToken = token;
+};
+
+export const setTokenSupplier = (supplier: (() => Promise<string | null>) | null) => {
+  tokenSupplier = supplier;
 };
 
 export const apiClient = axios.create({
@@ -15,9 +20,22 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (activeToken) {
-      config.headers.Authorization = `Bearer ${activeToken}`;
+  async (config: InternalAxiosRequestConfig) => {
+    let token = activeToken;
+    if (tokenSupplier) {
+      try {
+        const freshToken = await tokenSupplier();
+        if (freshToken) {
+          token = freshToken;
+          activeToken = freshToken;
+        }
+      } catch {
+        // Fall back to activeToken if refresh fails
+      }
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -36,7 +54,7 @@ apiClient.interceptors.response.use(
     if (errorData?.message) {
       friendlyMessage = errorData.message;
     } else if (status === 401) {
-      friendlyMessage = 'Authentication session expired or invalid. Please log in again.';
+      friendlyMessage = 'Authentication session expired or invalid. Please sign in again.';
     } else if (status === 403) {
       friendlyMessage = 'You do not have permission to access or modify this resource.';
     } else if (status === 404) {

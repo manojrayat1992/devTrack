@@ -124,9 +124,29 @@
     color: $color-text-white;
   }
 
+  &__auth-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
   &__btn {
     &--login {
       @include button-primary;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    &--register {
+      @include button-secondary;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      border-color: rgba(99, 102, 241, 0.4);
+
+      &:hover {
+        border-color: $color-primary-light;
+        color: $color-primary-light;
+      }
     }
 
     &--logout {

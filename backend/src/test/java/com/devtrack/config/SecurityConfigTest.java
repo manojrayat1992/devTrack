@@ -51,6 +51,14 @@ class SecurityConfigTest {
 
     @Test
     @WithMockUser(roles = "USER")
+    @DisplayName("Authenticated user with USER role can access /api/tasks")
+    void authenticatedUserCanAccessTasks() throws Exception {
+        mockMvc.perform(get("/api/tasks"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @WithMockUser(roles = "USER")
     @DisplayName("User with USER role cannot access /api/admin/metrics (returns 403 Forbidden)")
     void userCannotAccessAdminEndpoints() throws Exception {
         mockMvc.perform(get("/api/admin/metrics"))

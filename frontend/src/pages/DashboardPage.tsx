@@ -15,6 +15,7 @@ import { TaskCard } from '../components/TaskCard';
 import { TaskModal } from '../components/TaskModal';
 import { TaskFilterBar } from '../components/TaskFilterBar';
 import { Pagination } from '../components/Pagination';
+import { LoadingScreen } from '../components/LoadingScreen';
 import {
   Plus,
   ListTodo,
@@ -25,11 +26,13 @@ import {
   RefreshCw,
   FolderOpen,
   LogIn,
+  UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 import './DashboardPage.scss';
 
 export const DashboardPage: React.FC = () => {
-  const { authenticated, loading: authLoading, login, authError } = useAuth();
+  const { authenticated, loading: authLoading, login, register, authError } = useAuth();
 
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -126,12 +129,7 @@ export const DashboardPage: React.FC = () => {
   };
 
   if (authLoading) {
-    return (
-      <div className="dashboard-state">
-        <RefreshCw size={36} className="spin-icon" />
-        <p>Connecting to DevTrack authentication server...</p>
-      </div>
-    );
+    return <LoadingScreen message="Connecting to DevTrack authentication server..." />;
   }
 
   if (!authenticated) {
@@ -143,7 +141,7 @@ export const DashboardPage: React.FC = () => {
           </div>
           <h1 className="unauth-card__title">Welcome to DevTrack</h1>
           <p className="unauth-card__subtitle">
-            Enterprise Developer Task Management with Keycloak OpenID Connect authentication.
+            Enterprise Developer Task Management secured by Keycloak OpenID Connect & Spring Security.
           </p>
 
           {authError && (
@@ -153,13 +151,34 @@ export const DashboardPage: React.FC = () => {
             </div>
           )}
 
-          <button type="button" onClick={login} className="btn-login-hero">
-            <LogIn size={18} />
-            Sign In with Keycloak
-          </button>
+          <div className="unauth-card__features">
+            <div className="unauth-card__feature-item">
+              <ShieldCheck size={16} />
+              <span>Authorization Code Flow with PKCE (S256)</span>
+            </div>
+            <div className="unauth-card__feature-item">
+              <ShieldCheck size={16} />
+              <span>Strict task privacy keyed by JWT subject identifier (<code>sub</code>)</span>
+            </div>
+            <div className="unauth-card__feature-item">
+              <ShieldCheck size={16} />
+              <span>Self-registration automatically provisions the <code>USER</code> role</span>
+            </div>
+          </div>
+
+          <div className="unauth-card__actions">
+            <button type="button" onClick={login} className="btn-login-hero">
+              <LogIn size={18} />
+              <span>Sign In with Keycloak</span>
+            </button>
+            <button type="button" onClick={register} className="btn-register-hero">
+              <UserPlus size={18} />
+              <span>Create New Account</span>
+            </button>
+          </div>
 
           <div className="unauth-card__credentials">
-            <strong>Development Credentials:</strong>
+            <strong>Development Seed Accounts:</strong>
             <p>Developer: <code>dev_user</code> / <code>password123</code></p>
             <p>Administrator: <code>dev_admin</code> / <code>password123</code></p>
           </div>

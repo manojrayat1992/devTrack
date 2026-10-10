@@ -5,9 +5,13 @@ spring:
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
+      pool-name: DevTrackProdHikariPool
       connection-timeout: 20000
       maximum-pool-size: 20
       minimum-idle: 5
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 30000
   jpa:
     hibernate:
       ddl-auto: validate

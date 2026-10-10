@@ -199,4 +199,54 @@ class TaskControllerSliceTest {
             .andExpect(jsonPath("$.pageNumber").value(0))
             .andExpect(jsonPath("$.pageSize").value(10));
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /api/tasks/{id} with concurrent modification conflict returns 409 Conflict")
+    void updateTaskConflictReturns409() throws Exception {
+        UUID id = UUID.randomUUID();
+        TaskUpdateRequest request = new TaskUpdateRequest(
+            "Concurrent Update",
+            "Details",
+            TaskPriority.HIGH,
+            LocalDate.now()
+        );
+
+        when(taskService.updateTask(eq(id), any(TaskUpdateRequest.class)))
+            .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("Row updated by another transaction"));
+
+        mockMvc.perform(put("/api/tasks/{id}", id)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value(409))
+            .andExpect(jsonPath("$.error").value("Conflict"))
+            .andExpect(jsonPath("$.message").value("The task was modified by another concurrent transaction. Please reload the task and retry your change."));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/tasks/{id} with non-UUID path variable returns 400 Bad Request")
+    void getTaskInvalidUuidReturns400() throws Exception {
+        mockMvc.perform(get("/api/tasks/{id}", "not-a-valid-uuid"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message").exists());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/tasks with invalid sort property returns 400 Bad Request")
+    void listTasksInvalidSortPropertyReturns400() throws Exception {
+        when(taskService.findTasks(any(TaskFilterCriteria.class), any(Pageable.class)))
+            .thenThrow(new org.springframework.data.mapping.PropertyReferenceException("invalidField", org.springframework.data.util.TypeInformation.of(com.devtrack.entity.Task.class), java.util.List.of()));
+
+        mockMvc.perform(get("/api/tasks").param("sort", "invalidField,desc"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.status").value(400))
+            .andExpect(jsonPath("$.error").value("Bad Request"))
+            .andExpect(jsonPath("$.message").value("Invalid sorting or filter property: 'invalidField'"));
+    }
 }

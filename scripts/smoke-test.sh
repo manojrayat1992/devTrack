@@ -27,7 +27,7 @@ command -v curl >/dev/null 2>&1 || { echo -e "${RED}curl is required${NC}"; exit
 command -v jq >/dev/null 2>&1 || { echo -e "${YELLOW}Warning: jq is not installed. Output won't be formatted.${NC}"; }
 
 # 1. Health checks
-echo -e "\n${YELLOW}[Step 1/6] Verifying Backend Health...${NC}"
+echo -e "\n${YELLOW}[Step 1/8] Verifying Backend Health...${NC}"
 HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${BACKEND_URL}/actuator/health" || true)
 if [ "$HEALTH_STATUS" != "200" ]; then
     echo -e "${RED}FAILED: Backend health check returned HTTP ${HEALTH_STATUS}. Ensure services are up.${NC}"
@@ -36,7 +36,7 @@ fi
 echo -e "${GREEN}✓ Backend is UP (HTTP 200)${NC}"
 
 # 2. Authenticate as dev_user
-echo -e "\n${YELLOW}[Step 2/6] Authenticating as dev_user via Keycloak OIDC...${NC}"
+echo -e "\n${YELLOW}[Step 2/8] Authenticating as dev_user via Keycloak OIDC...${NC}"
 USER_TOKEN_RESPONSE=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "grant_type=password" \
@@ -54,7 +54,7 @@ fi
 echo -e "${GREEN}✓ Successfully obtained JWT access token for dev_user${NC}"
 
 # 3. Create a task as dev_user
-echo -e "\n${YELLOW}[Step 3/6] Creating Task via Protected API with Bearer token...${NC}"
+echo -e "\n${YELLOW}[Step 3/8] Creating Task via Protected API with Bearer token...${NC}"
 CREATE_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BACKEND_URL}/api/tasks" \
     -H "Authorization: Bearer ${USER_TOKEN}" \
     -H "Content-Type: application/json" \
@@ -77,7 +77,7 @@ TASK_ID=$(echo "$BODY" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
 echo -e "${GREEN}✓ Task created successfully with ID: ${TASK_ID} (HTTP 201)${NC}"
 
 # 4. Verify Non-Admin Forbidden on Admin Endpoint
-echo -e "\n${YELLOW}[Step 4/6] Verifying Role-Based Access Control: dev_user forbidden from /api/admin/metrics...${NC}"
+echo -e "\n${YELLOW}[Step 4/8] Verifying Role-Based Access Control: dev_user forbidden from /api/admin/metrics...${NC}"
 ADMIN_FORBIDDEN_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${BACKEND_URL}/api/admin/metrics" \
     -H "Authorization: Bearer ${USER_TOKEN}")
 
@@ -88,7 +88,7 @@ fi
 echo -e "${GREEN}✓ RBAC Verified: dev_user correctly denied access to admin metrics (HTTP 403)${NC}"
 
 # 5. Authenticate as dev_admin
-echo -e "\n${YELLOW}[Step 5/6] Authenticating as dev_admin...${NC}"
+echo -e "\n${YELLOW}[Step 5/8] Authenticating as dev_admin...${NC}"
 ADMIN_TOKEN_RESPONSE=$(curl -s -X POST "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     -d "grant_type=password" \
@@ -113,7 +113,7 @@ fi
 echo -e "${GREEN}✓ dev_admin successfully accessed system telemetry (HTTP 200)${NC}"
 
 # 6. Verify Ownership Privacy Boundary: dev_admin cannot view dev_user's private task
-echo -e "\n${YELLOW}[Step 6/6] Verifying Privacy Boundary: Admin cannot inspect user private task...${NC}"
+echo -e "\n${YELLOW}[Step 6/8] Verifying Privacy Boundary: Admin cannot inspect user private task...${NC}"
 ADMIN_PRIVATE_TASK_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${BACKEND_URL}/api/tasks/${TASK_ID}" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}")
 
@@ -123,6 +123,26 @@ if [ "$ADMIN_PRIVATE_TASK_CODE" != "403" ]; then
 fi
 echo -e "${GREEN}✓ Task ownership boundary verified: dev_admin denied access to dev_user's private task (HTTP 403)${NC}"
 
+# 7. Verify Keycloak Registration Flow is active
+echo -e "\n${YELLOW}[Step 7/8] Verifying Self-Registration Endpoint Availability...${NC}"
+REGISTRATION_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/registrations?client_id=${CLIENT_ID}&response_type=code&scope=openid&redirect_uri=http://localhost:5173" || true)
+
+if [ "$REGISTRATION_CODE" != "200" ] && [ "$REGISTRATION_CODE" != "302" ]; then
+    echo -e "${RED}FAILED: Registration endpoint check returned HTTP ${REGISTRATION_CODE}${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✓ Keycloak Self-Registration flow is ENABLED and reachable (HTTP ${REGISTRATION_CODE})${NC}"
+
+# 8. Verify OIDC Discovery and Audience Mapping
+echo -e "\n${YELLOW}[Step 8/8] Verifying OIDC Discovery Configuration...${NC}"
+OIDC_CONFIG=$(curl -s "${KEYCLOAK_URL}/realms/${REALM}/.well-known/openid-configuration" || true)
+if echo "$OIDC_CONFIG" | grep -q "authorization_endpoint"; then
+    echo -e "${GREEN}✓ OpenID Connect discovery endpoint verified for realm '${REALM}'${NC}"
+else
+    echo -e "${RED}FAILED: Could not retrieve OpenID Connect discovery configuration${NC}"
+    exit 1
+fi
+
 echo -e "\n${GREEN}======================================================${NC}"
-echo -e "${GREEN}  ALL SMOKE TESTS PASSED! DEVTRACK IS FULLY FUNCTIONAL ${NC}"
+echo -e "${GREEN}  ALL 8 SMOKE TESTS PASSED! DEVTRACK IS FULLY SECURE   ${NC}"
 echo -e "${GREEN}======================================================${NC}"

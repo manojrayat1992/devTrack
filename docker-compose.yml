@@ -29,6 +29,10 @@ services:
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin_secret_change_me_in_prod}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-devtrack_user}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-devtrack_secret_change_me_in_prod}
       KC_HEALTH_ENABLED: "true"
       KC_METRICS_ENABLED: "true"
       KC_HTTP_PORT: 8080
@@ -38,6 +42,9 @@ services:
       - "${KEYCLOAK_PORT:-8080}:8080"
     volumes:
       - ./docker/keycloak/devtrack-realm.json:/opt/keycloak/data/import/devtrack-realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /realms/devtrack HTTP/1.1\\r\\nHost: localhost:8080\\r\\nConnection: close\\r\\n\\r\\n' >&3 && cat <&3 | grep 'HTTP/1.1 200' || exit 1"]
       interval: 10s
@@ -82,6 +89,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8081/api}
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_FRONTEND_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-devtrack}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-devtrack-frontend}
     container_name: devtrack-frontend
     restart: unless-stopped
     depends_on:

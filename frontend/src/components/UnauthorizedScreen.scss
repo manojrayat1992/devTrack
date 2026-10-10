@@ -1,0 +1,120 @@
+@use '../styles/variables' as *;
+@use '../styles/mixins' as *;
+
+.unauthorized-screen {
+  min-height: calc(100vh - 100px);
+  @include flex-center;
+  padding: 2.5rem 1.5rem;
+}
+
+.unauthorized-card {
+  @include glassmorphism;
+  background: #111827;
+  max-width: 540px;
+  width: 100%;
+  border-radius: $radius-lg;
+  padding: 3rem 2.5rem;
+  text-align: center;
+  @include flex-center;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+
+  &__icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.12);
+    @include flex-center;
+    margin-bottom: 1.25rem;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+
+    .shield-icon,
+    .lock-icon {
+      color: #f87171;
+    }
+  }
+
+  &__status-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.15);
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  &__title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: $color-text-white;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.02em;
+  }
+
+  &__description {
+    font-size: 0.925rem;
+    color: $color-text-muted;
+    line-height: 1.55;
+    margin-bottom: 1.5rem;
+  }
+
+  &__policy-box {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid $color-border-subtle;
+    border-radius: $radius-md;
+    padding: 1rem 1.25rem;
+    text-align: left;
+    font-size: 0.825rem;
+    color: $color-text-dim;
+    margin-bottom: 2rem;
+    width: 100%;
+
+    strong {
+      color: $color-text-muted;
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    code {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+    }
+  }
+
+  &__actions {
+    width: 100%;
+    @include flex-center;
+
+    .btn-primary {
+      @include button-primary;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-secondary {
+      @include button-secondary;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+    }
+  }
+
+  &__auth-buttons {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}

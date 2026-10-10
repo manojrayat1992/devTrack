@@ -41,7 +41,8 @@ public class TaskMapper {
             task.getOwnerId(),
             task.getCreatedAt(),
             task.getUpdatedAt(),
-            allowedNext
+            allowedNext,
+            task.getVersion() != null ? task.getVersion() : 0L
         );
     }
 

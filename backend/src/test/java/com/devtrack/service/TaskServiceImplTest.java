@@ -142,6 +142,32 @@ class TaskServiceImplTest {
     }
 
     @Test
+    @DisplayName("getTaskById throws TaskOwnershipException even if current user has ROLE_ADMIN")
+    void adminCannotAccessAnotherUsersPrivateTask() {
+        Jwt adminJwt = Jwt.withTokenValue("mock-admin-token")
+            .header("alg", "none")
+            .claim("sub", "admin-sarah-456")
+            .claim("preferred_username", "sarah_admin")
+            .build();
+        JwtAuthenticationToken adminAuth = new JwtAuthenticationToken(
+            adminJwt,
+            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_USER"))
+        );
+        SecurityContextHolder.setContext(new org.springframework.security.core.context.SecurityContextImpl(adminAuth));
+
+        UUID taskId = UUID.randomUUID();
+        Task userTask = new Task(taskId, "User Private Task", "Desc", TaskPriority.HIGH, TaskStatus.OPEN, null, "user-bob-999");
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(userTask));
+
+        TaskOwnershipException exception = assertThrows(
+            TaskOwnershipException.class,
+            () -> taskService.getTaskById(taskId)
+        );
+
+        assertTrue(exception.getMessage().contains("not authorized"));
+    }
+
+    @Test
     @DisplayName("getTaskById throws ResourceNotFoundException when task does not exist")
     void getTaskByIdNotFound() {
         UUID taskId = UUID.randomUUID();

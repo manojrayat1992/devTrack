@@ -1,24 +1,47 @@
 {
   "realm": "devtrack",
-  "displayName": "DevTrack Realm",
+  "displayName": "DevTrack Task Platform",
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "rememberMe": true,
+  "verifyEmail": false,
+  "resetPasswordAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "roles": {
     "realm": [
       {
         "name": "USER",
-        "description": "Standard DevTrack developer role"
+        "description": "Standard DevTrack developer role with ownership-scoped task access"
       },
       {
         "name": "ADMIN",
-        "description": "DevTrack system administrator role with metrics access"
+        "description": "DevTrack system administrator role with system telemetry and metrics access"
+      },
+      {
+        "name": "default-roles-devtrack",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "USER"
+          ]
+        }
       }
     ]
+  },
+  "defaultRole": {
+    "name": "default-roles-devtrack",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "composites": {
+      "realm": [
+        "USER"
+      ]
+    }
   },
   "defaultRoles": [
     "USER"
@@ -51,6 +74,13 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:5173/*##http://localhost:5173"
       },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "roles",
+        "profile",
+        "email"
+      ],
       "protocolMappers": [
         {
           "name": "audience-mapper",
@@ -80,7 +110,7 @@
       "enabled": true,
       "email": "developer@devtrack.local",
       "firstName": "Alex",
-      "lastName": "Dev",
+      "lastName": "Developer",
       "emailVerified": true,
       "credentials": [
         {
@@ -98,7 +128,7 @@
       "enabled": true,
       "email": "admin@devtrack.local",
       "firstName": "Sarah",
-      "lastName": "Admin",
+      "lastName": "Administrator",
       "emailVerified": true,
       "credentials": [
         {

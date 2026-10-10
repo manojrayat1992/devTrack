@@ -40,9 +40,13 @@ public final class TaskSpecification {
             }
 
             if (criteria.search() != null && !criteria.search().trim().isEmpty()) {
-                String searchPattern = "%" + criteria.search().trim().toLowerCase() + "%";
-                Predicate titleMatch = cb.like(cb.lower(root.get("title")), searchPattern);
-                Predicate descMatch = cb.like(cb.lower(root.get("description")), searchPattern);
+                String sanitized = criteria.search().trim().toLowerCase()
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_");
+                String searchPattern = "%" + sanitized + "%";
+                Predicate titleMatch = cb.like(cb.lower(root.get("title")), searchPattern, '\\');
+                Predicate descMatch = cb.like(cb.lower(root.get("description")), searchPattern, '\\');
                 predicates.add(cb.or(titleMatch, descMatch));
             }
 

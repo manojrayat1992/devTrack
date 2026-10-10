@@ -17,5 +17,20 @@ public record TaskResponse(
     String ownerId,
     Instant createdAt,
     Instant updatedAt,
-    List<TaskStatus> allowedNextStatuses
-) {}
+    List<TaskStatus> allowedNextStatuses,
+    Long version
+) {
+    public TaskResponse(
+            UUID id,
+            String title,
+            String description,
+            TaskPriority priority,
+            TaskStatus status,
+            LocalDate dueDate,
+            String ownerId,
+            Instant createdAt,
+            Instant updatedAt,
+            List<TaskStatus> allowedNextStatuses) {
+        this(id, title, description, priority, status, dueDate, ownerId, createdAt, updatedAt, allowedNextStatuses, 0L);
+    }
+}

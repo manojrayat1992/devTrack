@@ -187,6 +187,36 @@
       border-radius: 3px;
     }
   }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  &__features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 1.25rem 0 1.5rem;
+    width: 100%;
+    text-align: left;
+  }
+
+  &__feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 0.825rem;
+    color: $color-text-muted;
+
+    svg {
+      color: #34d399;
+      flex-shrink: 0;
+    }
+  }
 }
 
 .btn-login-hero {
@@ -194,6 +224,21 @@
   padding: 0.875rem 1.75rem;
   font-size: 1rem;
   width: 100%;
+  justify-content: center;
+}
+
+.btn-register-hero {
+  @include button-secondary;
+  padding: 0.875rem 1.75rem;
+  font-size: 1rem;
+  width: 100%;
+  justify-content: center;
+  border-color: rgba(99, 102, 241, 0.4);
+
+  &:hover {
+    border-color: $color-primary-light;
+    color: $color-primary-light;
+  }
 }
 
 @keyframes spin {

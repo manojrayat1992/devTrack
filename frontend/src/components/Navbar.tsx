@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { CheckSquare, BarChart3, LogIn, LogOut, ShieldAlert } from 'lucide-react';
+import { CheckSquare, BarChart3, LogIn, LogOut, ShieldAlert, UserPlus } from 'lucide-react';
 import './Navbar.scss';
 
 export const Navbar: React.FC = () => {
-  const { authenticated, user, login, logout } = useAuth();
+  const { authenticated, user, login, register, logout } = useAuth();
   const location = useLocation();
 
   return (
@@ -21,26 +21,28 @@ export const Navbar: React.FC = () => {
           </div>
         </Link>
 
-        <nav className="navbar__nav">
-          <Link
-            to="/"
-            className={`navbar__link ${location.pathname === '/' ? 'navbar__link--active' : ''}`}
-          >
-            <CheckSquare size={16} />
-            My Tasks
-          </Link>
-
-          {user?.isAdmin && (
+        {authenticated && (
+          <nav className="navbar__nav">
             <Link
-              to="/admin"
-              className={`navbar__link ${location.pathname === '/admin' ? 'navbar__link--active' : ''}`}
+              to="/"
+              className={`navbar__link ${location.pathname === '/' ? 'navbar__link--active' : ''}`}
             >
-              <BarChart3 size={16} />
-              System Metrics
-              <span className="navbar__admin-chip">Admin</span>
+              <CheckSquare size={16} />
+              My Tasks
             </Link>
-          )}
-        </nav>
+
+            {user?.isAdmin && (
+              <Link
+                to="/admin"
+                className={`navbar__link ${location.pathname === '/admin' ? 'navbar__link--active' : ''}`}
+              >
+                <BarChart3 size={16} />
+                System Metrics
+                <span className="navbar__admin-chip">Admin</span>
+              </Link>
+            )}
+          </nav>
+        )}
 
         <div className="navbar__actions">
           {authenticated && user ? (
@@ -61,22 +63,33 @@ export const Navbar: React.FC = () => {
                 type="button"
                 onClick={logout}
                 className="navbar__btn navbar__btn--logout"
-                title="Logout from Keycloak"
+                title="Logout from Keycloak session"
               >
                 <LogOut size={16} />
                 <span>Logout</span>
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={login}
-              className="navbar__btn navbar__btn--login"
-              title="Authenticate via Keycloak"
-            >
-              <LogIn size={16} />
-              <span>Sign In with Keycloak</span>
-            </button>
+            <div className="navbar__auth-buttons">
+              <button
+                type="button"
+                onClick={register}
+                className="navbar__btn navbar__btn--register"
+                title="Create a new DevTrack account via Keycloak"
+              >
+                <UserPlus size={16} />
+                <span>Create Account</span>
+              </button>
+              <button
+                type="button"
+                onClick={login}
+                className="navbar__btn navbar__btn--login"
+                title="Sign in with Keycloak"
+              >
+                <LogIn size={16} />
+                <span>Sign In</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
