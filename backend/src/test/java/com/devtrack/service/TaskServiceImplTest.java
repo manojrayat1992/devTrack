@@ -240,4 +240,35 @@ class TaskServiceImplTest {
         assertEquals(1, response.content().size());
         assertEquals("T1", response.content().get(0).title());
     }
+
+    @Test
+    @DisplayName("findTasks caps excessively large requested page size at MAX_PAGE_SIZE (100)")
+    void findTasksCapsPageSizeAtMaximum() {
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenAnswer(invocation -> {
+                Pageable pageable = invocation.getArgument(1);
+                assertEquals(100, pageable.getPageSize(), "Page size should be clamped to 100");
+                return Page.empty(pageable);
+            });
+
+        TaskFilterCriteria criteria = new TaskFilterCriteria(null, null, null, null, null);
+        PageResponse<TaskResponse> response = taskService.findTasks(criteria, PageRequest.of(0, 500));
+
+        assertNotNull(response);
+    }
+
+    @Test
+    @DisplayName("findTasks appends id tie-breaker to ensure deterministic sorting across pages")
+    void findTasksAppendsIdTieBreaker() {
+        when(taskRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenAnswer(invocation -> {
+                Pageable pageable = invocation.getArgument(1);
+                assertTrue(pageable.getSort().stream().anyMatch(o -> o.getProperty().equalsIgnoreCase("id")),
+                    "Sort specification must include 'id' tie-breaker");
+                return Page.empty(pageable);
+            });
+
+        TaskFilterCriteria criteria = new TaskFilterCriteria(null, null, null, null, null);
+        taskService.findTasks(criteria, PageRequest.of(0, 10, org.springframework.data.domain.Sort.by("priority")));
+    }
 }
