@@ -37,31 +37,31 @@ public class DashboardServiceImpl implements DashboardService {
         String ownerId = SecurityUtils.getCurrentUserId();
         log.debug("Calculating dashboard metrics for user '{}'", ownerId);
 
-        long totalTasks = taskRepository.countByOwnerId(ownerId);
+        LocalDate today = LocalDate.now(clock);
 
-        // Initialize zero counts for all statuses
+        long totalTasks = taskRepository.countByOwnerId(ownerId);
+        java.util.List<StatusCountRecord> statusRecords = taskRepository.countTasksByStatusForOwner(ownerId);
+        java.util.List<PriorityCountRecord> priorityRecords = taskRepository.countTasksByPriorityForOwner(ownerId);
+        long dueToday = taskRepository.countByOwnerIdAndDueDate(ownerId, today);
+        long overdue = taskRepository.countByOwnerIdAndDueDateBeforeAndStatusNot(ownerId, today, TaskStatus.COMPLETED);
+
+        // Aggregate status counts
         Map<TaskStatus, Long> statusCounts = new EnumMap<>(TaskStatus.class);
         for (TaskStatus status : TaskStatus.values()) {
             statusCounts.put(status, 0L);
         }
-        for (StatusCountRecord record : taskRepository.countTasksByStatusForOwner(ownerId)) {
+        for (StatusCountRecord record : statusRecords) {
             statusCounts.put(record.status(), record.count());
         }
 
-        // Initialize zero counts for all priorities
+        // Aggregate priority counts
         Map<TaskPriority, Long> priorityCounts = new EnumMap<>(TaskPriority.class);
         for (TaskPriority priority : TaskPriority.values()) {
             priorityCounts.put(priority, 0L);
         }
-        for (PriorityCountRecord record : taskRepository.countTasksByPriorityForOwner(ownerId)) {
+        for (PriorityCountRecord record : priorityRecords) {
             priorityCounts.put(record.priority(), record.count());
         }
-
-        LocalDate today = LocalDate.now(clock);
-        long dueToday = taskRepository.countByOwnerIdAndDueDate(ownerId, today);
-        long overdue = taskRepository.countByOwnerIdAndDueDateBeforeAndStatusNot(
-            ownerId, today, TaskStatus.COMPLETED
-        );
 
         return new DashboardStatsResponse(totalTasks, statusCounts, priorityCounts, dueToday, overdue);
     }
@@ -73,13 +73,15 @@ public class DashboardServiceImpl implements DashboardService {
 
         long totalTasks = taskRepository.count();
         long activeUsers = taskRepository.countDistinctOwners();
+        java.util.List<StatusCountRecord> statusRecords = taskRepository.countTasksByStatusSystemWide();
+        java.util.List<PriorityCountRecord> priorityRecords = taskRepository.countTasksByPrioritySystemWide();
 
         // Single aggregation query for all statuses across system
         Map<TaskStatus, Long> statusCounts = new EnumMap<>(TaskStatus.class);
         for (TaskStatus status : TaskStatus.values()) {
             statusCounts.put(status, 0L);
         }
-        for (StatusCountRecord record : taskRepository.countTasksByStatusSystemWide()) {
+        for (StatusCountRecord record : statusRecords) {
             statusCounts.put(record.status(), record.count());
         }
 
@@ -88,7 +90,7 @@ public class DashboardServiceImpl implements DashboardService {
         for (TaskPriority priority : TaskPriority.values()) {
             priorityCounts.put(priority, 0L);
         }
-        for (PriorityCountRecord record : taskRepository.countTasksByPrioritySystemWide()) {
+        for (PriorityCountRecord record : priorityRecords) {
             priorityCounts.put(record.priority(), record.count());
         }
 
