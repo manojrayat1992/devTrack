@@ -3,7 +3,7 @@ package com.devtrack.exception;
 import com.devtrack.entity.TaskStatus;
 import java.util.List;
 
-public class InvalidStatusTransitionException extends DevTrackException {
+public final class InvalidStatusTransitionException extends DevTrackException {
 
     private final TaskStatus currentStatus;
     private final TaskStatus attemptedStatus;

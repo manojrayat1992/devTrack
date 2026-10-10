@@ -26,16 +26,38 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleResourceNotFound(ResourceNotFoundException ex, HttpServletRequest request) {
-        log.warn("Resource not found: {}", ex.getMessage());
-        ErrorResponse response = ErrorResponse.of(
-            HttpStatus.NOT_FOUND.value(),
-            "Not Found",
-            ex.getMessage(),
-            request.getRequestURI()
-        );
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    @ExceptionHandler(DevTrackException.class)
+    public ResponseEntity<ErrorResponse> handleDevTrackException(DevTrackException ex, HttpServletRequest request) {
+        log.warn("Domain exception on path {}: {}", request.getRequestURI(), ex.getMessage());
+        return switch (ex) {
+            case ResourceNotFoundException rnf -> {
+                ErrorResponse response = ErrorResponse.of(
+                    HttpStatus.NOT_FOUND.value(),
+                    "Not Found",
+                    rnf.getMessage(),
+                    request.getRequestURI()
+                );
+                yield ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+            case TaskOwnershipException toe -> {
+                ErrorResponse response = ErrorResponse.of(
+                    HttpStatus.FORBIDDEN.value(),
+                    "Forbidden",
+                    toe.getMessage(),
+                    request.getRequestURI()
+                );
+                yield ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+            }
+            case InvalidStatusTransitionException iste -> {
+                ErrorResponse response = ErrorResponse.of(
+                    HttpStatus.BAD_REQUEST.value(),
+                    "Invalid Status Transition",
+                    iste.getMessage(),
+                    request.getRequestURI()
+                );
+                yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+            }
+        };
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
@@ -47,30 +69,6 @@ public class GlobalExceptionHandler {
             request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-    }
-
-    @ExceptionHandler(InvalidStatusTransitionException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidStatusTransition(InvalidStatusTransitionException ex, HttpServletRequest request) {
-        log.warn("Invalid status transition: {}", ex.getMessage());
-        ErrorResponse response = ErrorResponse.of(
-            HttpStatus.BAD_REQUEST.value(),
-            "Invalid Status Transition",
-            ex.getMessage(),
-            request.getRequestURI()
-        );
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-    }
-
-    @ExceptionHandler(TaskOwnershipException.class)
-    public ResponseEntity<ErrorResponse> handleTaskOwnership(TaskOwnershipException ex, HttpServletRequest request) {
-        log.warn("Task ownership violation: {}", ex.getMessage());
-        ErrorResponse response = ErrorResponse.of(
-            HttpStatus.FORBIDDEN.value(),
-            "Forbidden",
-            ex.getMessage(),
-            request.getRequestURI()
-        );
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

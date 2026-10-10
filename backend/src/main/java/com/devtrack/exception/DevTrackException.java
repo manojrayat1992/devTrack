@@ -1,6 +1,9 @@
 package com.devtrack.exception;
 
-public abstract class DevTrackException extends RuntimeException {
+public abstract sealed class DevTrackException extends RuntimeException
+    permits ResourceNotFoundException,
+            TaskOwnershipException,
+            InvalidStatusTransitionException {
 
     public DevTrackException(String message) {
         super(message);
