@@ -279,8 +279,8 @@ class TaskServiceImplTest {
     }
 
     @Test
-    @DisplayName("createTask with non-OPEN status throws InvalidStatusTransitionException")
-    void createTaskWithNonOpenStatusFails() {
+    @DisplayName("createTask with COMPLETED status throws InvalidStatusTransitionException")
+    void createTaskWithCompletedStatusFails() {
         TaskCreateRequest request = new TaskCreateRequest(
             "Direct Completed Task",
             "Should not be allowed to bypass lifecycle",
@@ -294,7 +294,44 @@ class TaskServiceImplTest {
     }
 
     @Test
-    @DisplayName("getTaskById without authentication throws AccessDeniedException")
+    @DisplayName("createTask with IN_PROGRESS status throws InvalidStatusTransitionException")
+    void createTaskWithInProgressStatusFails() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Direct In Progress Task",
+            "Should not be allowed to bypass lifecycle",
+            TaskPriority.HIGH,
+            TaskStatus.IN_PROGRESS,
+            LocalDate.now().plusDays(2)
+        );
+
+        assertThrows(InvalidStatusTransitionException.class, () -> taskService.createTask(request));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    @DisplayName("createTask with null status defaults to OPEN and succeeds")
+    void createTaskWithNullStatusDefaultsToOpen() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Default Status Task",
+            "Null status should default to OPEN",
+            TaskPriority.MEDIUM,
+            null,
+            LocalDate.now().plusDays(1)
+        );
+
+        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> {
+            Task t = invocation.getArgument(0);
+            t.setId(UUID.randomUUID());
+            return t;
+        });
+
+        TaskResponse response = taskService.createTask(request);
+        assertNotNull(response);
+        assertEquals(TaskStatus.OPEN, response.status());
+    }
+
+    @Test
+    @DisplayName("getTaskById without authentication throws AccessDeniedException via SecurityUtils")
     void unauthenticatedAccessThrowsAccessDeniedException() {
         SecurityContextHolder.clearContext();
         UUID taskId = UUID.randomUUID();

@@ -252,7 +252,7 @@ class TaskControllerSliceTest {
 
     @Test
     @WithMockUser
-    @DisplayName("GET /api/tasks/{id} with cross-user ownership violation returns 403 Forbidden")
+    @DisplayName("GET /api/tasks/{id} when service throws TaskOwnershipException maps to 403 Forbidden")
     void getTaskCrossUserForbiddenReturns403() throws Exception {
         UUID id = UUID.randomUUID();
         when(taskService.getTaskById(id))
@@ -267,7 +267,7 @@ class TaskControllerSliceTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PUT /api/tasks/{id} with ownership violation returns 403 Forbidden")
+    @DisplayName("PUT /api/tasks/{id} when service throws TaskOwnershipException maps to 403 Forbidden")
     void updateTaskCrossUserForbiddenReturns403() throws Exception {
         UUID id = UUID.randomUUID();
         TaskUpdateRequest request = new TaskUpdateRequest("Title", "Desc", TaskPriority.HIGH, null);
@@ -286,7 +286,7 @@ class TaskControllerSliceTest {
 
     @Test
     @WithMockUser
-    @DisplayName("DELETE /api/tasks/{id} with ownership violation returns 403 Forbidden")
+    @DisplayName("DELETE /api/tasks/{id} when service throws TaskOwnershipException maps to 403 Forbidden")
     void deleteTaskCrossUserForbiddenReturns403() throws Exception {
         UUID id = UUID.randomUUID();
         doThrow(new TaskOwnershipException("You are not authorized to access or modify this task"))
@@ -300,7 +300,7 @@ class TaskControllerSliceTest {
 
     @Test
     @WithMockUser
-    @DisplayName("PATCH /api/tasks/{id}/status with ownership violation returns 403 Forbidden")
+    @DisplayName("PATCH /api/tasks/{id}/status when service throws TaskOwnershipException maps to 403 Forbidden")
     void updateStatusCrossUserForbiddenReturns403() throws Exception {
         UUID id = UUID.randomUUID();
         TaskStatusUpdateRequest request = new TaskStatusUpdateRequest(TaskStatus.IN_PROGRESS);
