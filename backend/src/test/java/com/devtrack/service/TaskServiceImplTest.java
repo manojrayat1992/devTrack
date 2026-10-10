@@ -301,7 +301,7 @@ class TaskServiceImplTest {
                 Pageable pageable = invocation.getArgument(1);
                 List<Sort.Order> orders = pageable.getSort().toList();
                 assertEquals(1, orders.size());
-                assertEquals("id", orders.get(0).getProperty());
+                assertEquals(Sort.Order.asc("id"), orders.get(0));
                 return Page.empty(pageable);
             });
 
