@@ -240,4 +240,66 @@ class TaskServiceImplTest {
         assertEquals(1, response.content().size());
         assertEquals("T1", response.content().get(0).title());
     }
+
+    @Test
+    @DisplayName("updateTask throws TaskOwnershipException when user does not own the task")
+    void updateTaskForbiddenForNonOwner() {
+        UUID taskId = UUID.randomUUID();
+        Task foreignTask = new Task(taskId, "Foreign Task", "Desc", TaskPriority.LOW, TaskStatus.OPEN, null, "user-bob-999");
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(foreignTask));
+
+        TaskUpdateRequest request = new TaskUpdateRequest("New Title", "New Desc", TaskPriority.HIGH, null);
+
+        assertThrows(TaskOwnershipException.class, () -> taskService.updateTask(taskId, request));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    @DisplayName("deleteTask throws TaskOwnershipException when user does not own the task")
+    void deleteTaskForbiddenForNonOwner() {
+        UUID taskId = UUID.randomUUID();
+        Task foreignTask = new Task(taskId, "Foreign Task", "Desc", TaskPriority.LOW, TaskStatus.OPEN, null, "user-bob-999");
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(foreignTask));
+
+        assertThrows(TaskOwnershipException.class, () -> taskService.deleteTask(taskId));
+        verify(taskRepository, never()).delete(any(Task.class));
+    }
+
+    @Test
+    @DisplayName("updateTaskStatus throws TaskOwnershipException when user does not own the task")
+    void updateTaskStatusForbiddenForNonOwner() {
+        UUID taskId = UUID.randomUUID();
+        Task foreignTask = new Task(taskId, "Foreign Task", "Desc", TaskPriority.LOW, TaskStatus.OPEN, null, "user-bob-999");
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(foreignTask));
+
+        TaskStatusUpdateRequest request = new TaskStatusUpdateRequest(TaskStatus.IN_PROGRESS);
+
+        assertThrows(TaskOwnershipException.class, () -> taskService.updateTaskStatus(taskId, request));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    @DisplayName("createTask with non-OPEN status throws InvalidStatusTransitionException")
+    void createTaskWithNonOpenStatusFails() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Direct Completed Task",
+            "Should not be allowed to bypass lifecycle",
+            TaskPriority.HIGH,
+            TaskStatus.COMPLETED,
+            LocalDate.now().plusDays(2)
+        );
+
+        assertThrows(InvalidStatusTransitionException.class, () -> taskService.createTask(request));
+        verify(taskRepository, never()).save(any(Task.class));
+    }
+
+    @Test
+    @DisplayName("getTaskById without authentication throws AccessDeniedException")
+    void unauthenticatedAccessThrowsAccessDeniedException() {
+        SecurityContextHolder.clearContext();
+        UUID taskId = UUID.randomUUID();
+
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+            () -> taskService.getTaskById(taskId));
+    }
 }

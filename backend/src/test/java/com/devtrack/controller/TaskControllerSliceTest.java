@@ -249,4 +249,70 @@ class TaskControllerSliceTest {
             .andExpect(jsonPath("$.error").value("Bad Request"))
             .andExpect(jsonPath("$.message").value("Invalid sorting or filter property: 'invalidField'"));
     }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /api/tasks/{id} with cross-user ownership violation returns 403 Forbidden")
+    void getTaskCrossUserForbiddenReturns403() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(taskService.getTaskById(id))
+            .thenThrow(new TaskOwnershipException("You are not authorized to access or modify this task"));
+
+        mockMvc.perform(get("/api/tasks/{id}", id))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.error").value("Forbidden"))
+            .andExpect(jsonPath("$.message").value("You are not authorized to access or modify this task"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /api/tasks/{id} with ownership violation returns 403 Forbidden")
+    void updateTaskCrossUserForbiddenReturns403() throws Exception {
+        UUID id = UUID.randomUUID();
+        TaskUpdateRequest request = new TaskUpdateRequest("Title", "Desc", TaskPriority.HIGH, null);
+        when(taskService.updateTask(eq(id), any(TaskUpdateRequest.class)))
+            .thenThrow(new TaskOwnershipException("You are not authorized to access or modify this task"));
+
+        mockMvc.perform(put("/api/tasks/{id}", id)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.error").value("Forbidden"))
+            .andExpect(jsonPath("$.message").value("You are not authorized to access or modify this task"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("DELETE /api/tasks/{id} with ownership violation returns 403 Forbidden")
+    void deleteTaskCrossUserForbiddenReturns403() throws Exception {
+        UUID id = UUID.randomUUID();
+        doThrow(new TaskOwnershipException("You are not authorized to access or modify this task"))
+            .when(taskService).deleteTask(id);
+
+        mockMvc.perform(delete("/api/tasks/{id}", id).with(csrf()))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.error").value("Forbidden"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PATCH /api/tasks/{id}/status with ownership violation returns 403 Forbidden")
+    void updateStatusCrossUserForbiddenReturns403() throws Exception {
+        UUID id = UUID.randomUUID();
+        TaskStatusUpdateRequest request = new TaskStatusUpdateRequest(TaskStatus.IN_PROGRESS);
+        when(taskService.updateTaskStatus(eq(id), any(TaskStatusUpdateRequest.class)))
+            .thenThrow(new TaskOwnershipException("You are not authorized to access or modify this task"));
+
+        mockMvc.perform(patch("/api/tasks/{id}/status", id)
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.error").value("Forbidden"));
+    }
 }

@@ -78,6 +78,8 @@ public class TaskServiceImpl implements TaskService {
         log.info("Updating status of task '{}' to '{}' by user '{}'", id, request.status(), currentUserId);
 
         Task task = getTaskAndVerifyOwnership(id, currentUserId);
+        java.util.Objects.requireNonNull(request, "TaskStatusUpdateRequest cannot be null");
+        java.util.Objects.requireNonNull(request.status(), "Target status cannot be null");
         transitionEngine.validateTransition(task.getStatus(), request.status());
 
         task.setStatus(request.status());
@@ -111,9 +113,12 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private Task getTaskAndVerifyOwnership(UUID id, String currentUserId) {
+        if (currentUserId == null || currentUserId.isBlank()) {
+            throw new org.springframework.security.access.AccessDeniedException("User must be authenticated");
+        }
         return taskRepository.findById(id)
             .map(task -> {
-                if (!task.getOwnerId().equals(currentUserId)) {
+                if (!java.util.Objects.equals(task.getOwnerId(), currentUserId)) {
                     log.warn("User '{}' attempted to access task '{}' owned by '{}'",
                         currentUserId, id, task.getOwnerId());
                     throw new TaskOwnershipException("You are not authorized to access or modify this task");
