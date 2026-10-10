@@ -106,4 +106,88 @@ class TaskValidationTest {
         assertFalse(violations.isEmpty());
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("description")));
     }
+
+    @Test
+    @DisplayName("Whitespace-padded short title is stripped and fails validation")
+    void whitespacePaddedShortTitleFailsValidation() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "  ab  ",
+            "Valid description",
+            TaskPriority.MEDIUM,
+            TaskStatus.OPEN,
+            LocalDate.now()
+        );
+
+        Set<ConstraintViolation<TaskCreateRequest>> violations = validator.validate(request);
+        assertFalse(violations.isEmpty());
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("title")));
+    }
+
+    @Test
+    @DisplayName("Whitespace-padded valid title is stripped and passes validation")
+    void whitespacePaddedValidTitlePassesValidation() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "  abc  ",
+            "Valid description",
+            TaskPriority.MEDIUM,
+            TaskStatus.OPEN,
+            LocalDate.now()
+        );
+
+        assertEquals("abc", request.title());
+        Set<ConstraintViolation<TaskCreateRequest>> violations = validator.validate(request);
+        assertTrue(violations.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Description with exactly 4000 characters passes validation")
+    void maxAllowedDescriptionPassesValidation() {
+        String maxDescription = "A".repeat(4000);
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Valid Title",
+            maxDescription,
+            TaskPriority.LOW,
+            TaskStatus.OPEN,
+            LocalDate.now()
+        );
+
+        Set<ConstraintViolation<TaskCreateRequest>> violations = validator.validate(request);
+        assertTrue(violations.isEmpty());
+    }
+
+    @Test
+    @DisplayName("Null description passes validation")
+    void nullDescriptionPassesValidation() {
+        TaskCreateRequest request = new TaskCreateRequest(
+            "Valid Title",
+            null,
+            TaskPriority.LOW,
+            TaskStatus.OPEN,
+            null
+        );
+
+        Set<ConstraintViolation<TaskCreateRequest>> violations = validator.validate(request);
+        assertTrue(violations.isEmpty());
+    }
+
+    @Test
+    @DisplayName("TaskUpdateRequest validates correctly on boundary values")
+    void taskUpdateRequestValidation() {
+        TaskUpdateRequest validRequest = new TaskUpdateRequest(
+            "Updated Title",
+            "Updated description",
+            TaskPriority.CRITICAL,
+            null
+        );
+        assertTrue(validator.validate(validRequest).isEmpty());
+
+        TaskUpdateRequest invalidRequest = new TaskUpdateRequest(
+            "  x  ",
+            null,
+            null,
+            null
+        );
+        Set<ConstraintViolation<TaskUpdateRequest>> violations = validator.validate(invalidRequest);
+        assertEquals(2, violations.size()); // title < 3 and priority is null
+    }
 }

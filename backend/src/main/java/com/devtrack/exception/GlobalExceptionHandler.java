@@ -112,7 +112,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
         log.warn("Method argument type mismatch on path {}: {}", request.getRequestURI(), ex.getMessage());
-        String message = String.format("Parameter '%s' has an invalid value format: '%s'", ex.getName(), ex.getValue());
+        Class<?> requiredType = ex.getRequiredType();
+        String message;
+        if (requiredType != null && requiredType.isEnum()) {
+            Object[] enumConstants = requiredType.getEnumConstants();
+            message = String.format("Parameter '%s' has an invalid value '%s'. Expected one of: %s",
+                ex.getName(), ex.getValue(), java.util.Arrays.toString(enumConstants));
+        } else {
+            message = String.format("Parameter '%s' has an invalid value format: '%s'", ex.getName(), ex.getValue());
+        }
         ErrorResponse response = ErrorResponse.of(
             HttpStatus.BAD_REQUEST.value(),
             "Bad Request",
@@ -120,6 +128,54 @@ public class GlobalExceptionHandler {
             request.getRequestURI()
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ErrorResponse> handleMissingParameter(org.springframework.web.bind.MissingServletRequestParameterException ex, HttpServletRequest request) {
+        log.warn("Missing request parameter on path {}: {}", request.getRequestURI(), ex.getParameterName());
+        ErrorResponse response = ErrorResponse.of(
+            HttpStatus.BAD_REQUEST.value(),
+            "Bad Request",
+            "Required request parameter '" + ex.getParameterName() + "' of type '" + ex.getParameterType() + "' is missing",
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingRequestHeaderException.class)
+    public ResponseEntity<ErrorResponse> handleMissingHeader(org.springframework.web.bind.MissingRequestHeaderException ex, HttpServletRequest request) {
+        log.warn("Missing request header on path {}: {}", request.getRequestURI(), ex.getHeaderName());
+        ErrorResponse response = ErrorResponse.of(
+            HttpStatus.BAD_REQUEST.value(),
+            "Bad Request",
+            "Required request header '" + ex.getHeaderName() + "' is missing",
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(org.springframework.web.HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
+        log.warn("Unsupported Media Type on path {}: {}", request.getRequestURI(), ex.getContentType());
+        ErrorResponse response = ErrorResponse.of(
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
+            "Unsupported Media Type",
+            "Content-Type '" + ex.getContentType() + "' is not supported. Supported media types: " + ex.getSupportedMediaTypes(),
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotAcceptable(org.springframework.web.HttpMediaTypeNotAcceptableException ex, HttpServletRequest request) {
+        log.warn("Media Type Not Acceptable on path {}: {}", request.getRequestURI(), ex.getMessage());
+        ErrorResponse response = ErrorResponse.of(
+            HttpStatus.NOT_ACCEPTABLE.value(),
+            "Not Acceptable",
+            "Requested media type is not acceptable. Acceptable types: " + ex.getSupportedMediaTypes(),
+            request.getRequestURI()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).body(response);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
